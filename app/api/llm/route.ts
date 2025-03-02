@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { TokenJS } from 'token.js';
-import { db } from '@/lib/db';
 
 // Utils
 import { calculateCost } from '@/lib/utils';
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
       apiKey: provider.token,
     });
 
-    // Make the API call using TokenJS
+    process.env.DEBUG = 'true';
     completion = await tokenjs.chat.completions.create({
       provider: provider.source,
       model,
@@ -35,7 +34,9 @@ export async function POST(request: Request) {
       tool_choice: functions?.length ? 'auto' : undefined,
     });
 
-    if (!completion.choices[0].message) {
+    const message = completion.choices[0].message;
+
+    if (!message) {
       return NextResponse.json(
         { error: 'Invalid completion' },
         { status: 400 }
@@ -50,8 +51,8 @@ export async function POST(request: Request) {
     );
 
     // Handle function call response
-    let content = completion.choices[0]?.message?.content;
-    let functionResults = completion.choices[0]?.message?.tool_calls;
+    let content = message.content;
+    let functionResults = message?.tool_calls;
 
     const usage = completion.usage
       ? {
@@ -63,22 +64,6 @@ export async function POST(request: Request) {
       : undefined;
 
     const duration = Date.now() - startTime;
-
-    // Log to history
-    await db.logs.create({
-      data: {
-        prompt: messages[messages.length - 1].content,
-        systemPrompt: messages.find((m: any) => m.role === 'system')?.content,
-        response: content || '',
-        functionCalls: functions,
-        functionResults,
-        model,
-        provider: provider.name,
-        duration,
-        usage,
-        type: functionResults ? 'function' : 'prompt',
-      },
-    });
 
     return NextResponse.json({
       id: completion.id,
