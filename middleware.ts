@@ -2,17 +2,16 @@ import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { NextRequest } from 'next/server';
 
-
 export async function middleware(req: NextRequest) {
-    const token = await getToken({ req });
+  const token = await getToken({ req });
 
-    // Define paths that do not require authentication
-    const publicPaths = ['/auth/signin', '/auth/signup'];
+  // Define paths that do not require authentication
+  const publicPaths = ['/auth/sign-in', '/auth/sign-up'];
 
-    // If the user is not authenticated and trying to access a protected route
-    if (!token && !publicPaths.includes(req.nextUrl.pathname)) {
-        return NextResponse.redirect(new URL('/auth/signin', req.url));
-    }
+  // If the user is not authenticated and trying to access a protected route
+  if (!token && !publicPaths.includes(req.nextUrl.pathname)) {
+    return NextResponse.redirect(new URL('/auth/sign-in', req.url));
+  }
 
   // Allow the request to proceed
   return NextResponse.next();
@@ -20,5 +19,5 @@ export async function middleware(req: NextRequest) {
 
 // Specify the paths where the middleware should run
 export const config = {
-    matcher: ['/((?!api|_next|static|favicon.ico).*)'],
+  matcher: ['/((?!api|_next|static|favicon.ico).*)'],
 };

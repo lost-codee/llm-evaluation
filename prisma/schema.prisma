@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  providers Provider[]
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Provider {
+  id        String    @id @default(uuid())
+  name      String
+  source    String
+  token     String
+  endpoint  String?
+  models    String[]  @default([])
+  Logs      Logs[]
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id])
+  lastUsed  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model File {
+  id            String         @id @default(uuid())
+  name          String
+  path          String
+  content       String?
+  type          String
+  parentId      String?
+  parent        File?          @relation("FileToFile", fields: [parentId], references: [id])
+  children      File[]         @relation("FileToFile")
+  functionCalls FunctionCall[] @relation("FunctionCallToFile")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model FunctionCall {
+  id        String   @id @default(uuid())
+  function  Json // Store the entire function definition as JSON
+  file      File?    @relation("FunctionCallToFile", fields: [fileId], references: [id])
+  fileId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Dataset {
+  id        String   @id @default(uuid())
+  name      String
+  data      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Logs {
+  id              String   @id @default(uuid())
+  prompt          String
+  systemPrompt    String?
+  response        String // For content response or stringified function call
+  functionCalls   Json? // Store the function definitions passed to the LLM
+  functionResults Json? // Store the function call results from the LLM
+  model           String
+  providerId      String
+  provider        Provider @relation(fields: [providerId], references: [id])
+  duration        Int // Store duration in milliseconds
+  usage           Json? // Store token usage as JSON
+  type            String // 'prompt' or 'function'
+  createdAt       DateTime @default(now())
+}
